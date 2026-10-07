@@ -50,7 +50,7 @@ Những điểm **chưa xử lý** hoặc **cần kiểm chứng trên Revit th�
 ## 📂 Cấu trúc thư mục
 
 ```text
-📁 mep-automation-toolkit/
+📁 Revit-tools/
  ├── 📁 MEP_Tools.extension/      # <-- Dùng thư mục này để load vào pyRevit
  │    ├── 📁 lib/
  │    │    └── mep_common.py      # Hàm dùng chung (đọc tham số, nhập liệu, hình học...)
