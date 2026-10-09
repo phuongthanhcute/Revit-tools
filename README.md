@@ -63,7 +63,7 @@ Những điểm **chưa xử lý** hoặc **cần kiểm chứng trên Revit th�
  │              ├── 📁 Auto Routing.pushbutton/
  │              └── 📁 Clash Avoid.pushbutton/
  ├── 📁 Specs/                    # Tài liệu kỹ thuật (Algorithm Specifications)
- ├── 📁 tests/                    # Test chạy ngoài Revit (xem tests/README.md)
+ ├── 📁 tests/                    # Test chạy ngoài Revit + try_it.py (chạy thử có hộp thoại)
  ├── 📁 docs/                     # Ghi chú ý tưởng ban đầu
  ├── 📄 checklist.md              # Danh sách bug, trạng thái và việc cần xác nhận
  └── 📄 README.md
@@ -78,3 +78,38 @@ Những điểm **chưa xử lý** hoặc **cần kiểm chứng trên Revit th�
 5. Bấm **Add Folder** và trỏ đường dẫn tới thư mục mẹ (VD: `C:\BIM_Tools\`).
 6. Bấm **Save Settings and Reload**.
 7. Một Tab mới tên là **HVAC** sẽ xuất hiện trên Revit cùng 4 công cụ nói trên.
+
+---
+
+## 📝 Lịch sử thay đổi
+
+> Mọi thay đổi dưới đây mới được kiểm tra bằng mô hình Revit giả (`tests/`), **chưa chạy trên Revit thật**.
+
+### v1.1.0 — 2026-10-09 · Đối chiếu tiêu chuẩn Cơ điện, né va chạm nhiều ống/nhiều vật cản
+Đối chiếu với `Docs_tieu_chuan/` (DUCT-WORK R0 2025/08, SME-SDG-01), chi tiết trong `Specs/00_Doi_chieu_tieu_chuan.md`. Các ô người dùng nhập được giữ nguyên; giá trị vượt chuẩn chỉ hỏi xác nhận.
+
+**Auto Hangers**
+- Nhịp giá đỡ chọn riêng cho từng nhóm ống (ống gió, mỗi Pipe Type): bảng theo HD (PPR, UPVC, chữa cháy, nước ngưng, gas đồng) hoặc "Tuỳ biến".
+- Giá đỡ cách phụ kiện/tay nhánh ≥ 200 mm (ống gió) hoặc 100 mm (ống nước), và cách thiết bị/miệng gió 300 mm; cả ba là ô nhập.
+- Bổ sung giá cuối tuyến cho ống gió có đầu ống tự do (≤ 300 mm cách đầu ống).
+- Ty treo kết thúc tại đỉnh / tâm / đáy ống; bề rộng giá cộng bảo ôn hai bên.
+- Sửa: hai giá liền kề dịch ngược chiều làm nhịp vượt giá trị nhập; ghi chiều dài ty âm; nhập nhầm đơn vị (nhịp < 200 mm) không hỏi; đầu nối chưa liền connector (Union lỗi) bị coi là cuối tuyến.
+
+**Auto Routing**
+- Nhận mọi family có connector gió còn trống (kể cả hộp gió); đường kính ống mềm theo connector tròn.
+- Chọn loại ống mềm; chọn có/không bảo ôn (loại và bề dày).
+- Chiều dài ống mềm mặc định 2000 mm (DW-01.01), nhập hơn thì hỏi xác nhận.
+- Cổ trích cách cút ≥ 8W (ống chữ nhật) / 6D (ống tròn): vẫn đặt khi không đủ chỗ nhưng cảnh báo.
+- Cổ trích trên cùng ống phải cách nhau đủ chỗ; bỏ qua ống bị Pin, ống khác loại hệ thống, ống nhỏ hơn cổ trích.
+
+**Clash Avoid**
+- Chọn góc bẻ: 45° (mặc định), 15°, 30°, 60°.
+- Chọn nhiều ống và nhiều vật cản một lần; vật cản đứng gần nhau được gộp thành một chỗ né (ngưỡng 300 mm là đề xuất, chờ kỹ sư xác nhận).
+- Mỗi chỗ né hoàn tác riêng khi lỗi; cảnh báo nếu việc bẻ làm hai ống có thể va chạm nhau.
+
+**Split Ducts/Pipes**: gợi ý 1120 (TDC) / 1180 (nẹp C, bích V) ở ô nhập; báo phần tử không phải ống cứng bị bỏ qua.
+
+**Khác**: thêm `tests/try_it.py` (chạy thử có hộp thoại trong terminal trên Revit giả), `docs/cau_hoi_cho_ky_su_co_dien.md` (câu hỏi cần kỹ sư xác nhận).
+
+### v1.0.0 — 2026-10-07 · Bản sửa lỗi nền
+Sửa các lỗi crash và sai nghiệp vụ của 4 tool (38/52 mục trong `checklist.md` đã sửa), thêm bộ test trên Revit giả.
