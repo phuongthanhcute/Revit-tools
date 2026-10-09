@@ -2,7 +2,7 @@
 __title__ = "Split\nDucts/Pipes"
 __doc__ = """Chia đường ống dài thành các đoạn tiêu chuẩn.
 Hỗ trợ:
-- Ống gió (Duct): Mặc định 1120mm
+- Ống gió (Duct): Mặc định 1120mm (mối nối TDC; dùng 1180mm cho nẹp C / bích V theo DW-01.01)
 - Ống nước/thép (Pipe): Mặc định 6000mm
 
 Cách dùng:
@@ -105,10 +105,11 @@ if not ducts and not pipes:
 # Chỉ hỏi chiều dài cho loại ống thực sự có trong vùng chọn
 duct_len_ft = pipe_len_ft = None
 if ducts:
-    duct_len_ft = mm_to_ft(ask_positive_number("1120", "Nhập chiều dài tiêu chuẩn cắt ỐNG GIÓ (mm):", "Chia Ống Gió"))
+    duct_len_ft = mm_to_ft(ask_positive_number("1120", "Nhập chiều dài tiêu chuẩn cắt ỐNG GIÓ (mm):\n(1120: mối nối TDC; 1180: nẹp C / bích V - theo DW-01.01)", "Chia Ống Gió"))
 if pipes:
     pipe_len_ft = mm_to_ft(ask_positive_number("6000", "Nhập chiều dài tiêu chuẩn cắt ỐNG NƯỚC (mm):", "Chia Ống Nước"))
 
+ignored_count = len(selection.elements) - len(ducts) - len(pipes)   # ống mềm, phụ kiện... (tool chưa hỗ trợ)
 total_cuts = total_unions = total_union_failed = skipped_pinned = 0
 
 with revit.Transaction("Chia Ống Tiêu Chuẩn (Split MEP Curves)"):
@@ -127,6 +128,8 @@ report += "- Số nhát cắt: {}\n".format(total_cuts)
 report += "- Số Union chèn thành công: {}\n".format(total_unions)
 if total_union_failed:
     report += "- Số vị trí KHÔNG chèn được Union: {} (xem cửa sổ Output)\n".format(total_union_failed)
+if ignored_count:
+    report += "- Phần tử bị bỏ qua vì không phải ống gió/ống nước cứng (ống mềm, phụ kiện...): {}\n".format(ignored_count)
 if skipped_pinned:
     report += "- Ống bị Pin nên bỏ qua: {}\n".format(skipped_pinned)
 forms.alert(report, title="Kết Quả")

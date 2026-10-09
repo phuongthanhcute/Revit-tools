@@ -38,6 +38,7 @@ def build(scenario):
     DB.Plumbing.Pipe, DB.Mechanical.Duct = Pipe, Duct
     DB.View3D, DB.LocationCurve = View3D, LocationCurve
     DB.MEPCurve = (Pipe, Duct)
+    DB.ReferenceIntersector.return_value.FindNearest.return_value = types.SimpleNamespace(Proximity=3.0)   # tia trúng sàn cách 3 ft
     DB.Line.CreateBound = lambda a, b: MagicMock()
     # --- UI module (Autodesk.Revit.UI) ---
     UI = types.SimpleNamespace(Selection=types.SimpleNamespace(
@@ -51,7 +52,7 @@ def build(scenario):
     sym = MagicMock(name="FamilySymbol"); sym.IsActive = True
     forms = types.SimpleNamespace(
         alert=alert, TemplateListItem=TemplateListItem,
-        SelectFromList=types.SimpleNamespace(show=lambda opts, **k: sym if scenario != "clash" else "Đi lên trên (Up)"),
+        SelectFromList=types.SimpleNamespace(show=lambda opts, **k: (sym if k.get("title") == "Chọn Family Giá Đỡ" else list(opts)[0]) if scenario != "clash" else ("Đi lên trên (Up)" if k.get("title") == "Chọn hướng né va chạm" else list(opts)[0])),
         ask_for_string=lambda **k: k["default"])
     def sexit(): raise ExitScript()
     script = types.SimpleNamespace(exit=sexit)
@@ -73,9 +74,9 @@ def build(scenario):
         def __exit__(s, *e): return False
     uidoc = MagicMock()
     if scenario == "clash_cancel":
-        uidoc.Selection.PickObject.side_effect = OperationCanceledException()
+        uidoc.Selection.PickObjects.side_effect = OperationCanceledException()
     elif scenario == "clash_bug":
-        uidoc.Selection.PickObject.side_effect = RuntimeError("real bug")
+        uidoc.Selection.PickObjects.side_effect = RuntimeError("real bug")
     revit = types.SimpleNamespace(doc=doc, uidoc=uidoc, Transaction=Tx,
                                   get_selection=lambda: types.SimpleNamespace(elements=[pipe]))
     pyrevit = types.ModuleType("pyrevit")

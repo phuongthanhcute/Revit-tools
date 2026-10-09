@@ -43,6 +43,7 @@ class Duct: pass
 class Pipe: pass
 class FlexDuct: pass
 class FlexDuctType: pass
+class DuctInsulationType: pass
 class FamilyInstance: pass
 class FamilySymbol: pass
 class View3D: pass
@@ -158,6 +159,10 @@ def build(doc, scenario):
     DB.LocationCurve, DB.MEPCurve, DB.View3D, DB.FamilyInstance, DB.FamilySymbol = LocationCurve, (Duct, Pipe), View3D, FamilyInstance, FamilySymbol
     DB.Mechanical.Duct, DB.Plumbing.Pipe = Duct, Pipe
     DB.Mechanical.FlexDuctType = FlexDuctType
+    DB.Mechanical.DuctInsulationType = DuctInsulationType
+    DB.ConnectorProfileType = types.SimpleNamespace(Round="Round")
+    DB.PartType = types.SimpleNamespace(Elbow="Elbow")
+    DB.Mechanical.DuctInsulation = types.SimpleNamespace(Create=lambda d, i, t, th: scenario.setdefault("insulated", []).append((i, t, th)))
     def _break(d, i, p):
         if scenario.get("break_fail"): raise RuntimeError("BreakCurve failed (injected)")
         return break_curve(doc, i, p)
@@ -166,6 +171,7 @@ def build(doc, scenario):
     DB.ElementTransformUtils.CopyElements = lambda d, ids, v: copy_elements(doc, ids, v)
     DB.ElementTransformUtils.RotateElement = lambda d, i, ax, a: doc.rotated.append(a)
     DB.BuiltInCategory.OST_DuctTerminal = 7
+    DB.BuiltInCategory.OST_MechanicalEquipment = 8
     DB.ElementId.InvalidElementId = "INVALID"
     class Coll:
         def __init__(s, d, vid=None): s.cls, s.f = None, []
@@ -173,15 +179,23 @@ def build(doc, scenario):
         def WherePasses(s, f): s.f.append(f); return s
         def _bb(s): return [f.o for f in s.f if isinstance(f, BBFilter)]
         def ToElements(s):
-            if s.cls is FlexDuctType: return [scenario["flextype"]]
+            if s.cls is FlexDuctType: return scenario.get("flextypes") or [scenario["flextype"]]
+            if s.cls is DuctInsulationType: return scenario.get("instypes", [])
             if s.cls is FamilySymbol: return [scenario["sym"]]
             if s.cls is FamilyInstance:
                 return [h for h in doc.placed if all(_hit(o, h.bbox) for o in s._bb())]
             if s.cls is Duct:
                 return [e for e in doc.els.values() if isinstance(e, Duct) and all(_hit(o, _bbox_of(e)) for o in s._bb())]
             return []
+        def _cats(s):
+            out = []
+            for f in s.f:
+                for x in (getattr(f, "a", None) or [f]):
+                    if isinstance(x, CatFilter): out.append(x.c)
+            return out
         def ToElementIds(s):
-            return [1 for fb in scenario.get("fittings", []) if all(_hit(o, fb) for o in s._bb())]
+            key = "equipment" if any(c in (7, 8) for c in s._cats()) else "fittings"
+            return [1 for fb in scenario.get(key, []) if all(_hit(o, fb) for o in s._bb())]
     DB.FilteredElementCollector = Coll
     # raytrace
     class RI:
@@ -192,7 +206,7 @@ def build(doc, scenario):
     DB.ReferenceIntersector = RI
     def flex_create(d, sysid, typeid, lvl, pts):
         pts = list(pts); f = FlexDuct(); doc.add(f)
-        f.ConnectorManager = CM([Conn(f, pt=pts[0]), Conn(f, pt=pts[-1])]); f.sysid = sysid; scenario["flex"].append(f); return f
+        f.ConnectorManager = CM([Conn(f, pt=pts[0]), Conn(f, pt=pts[-1])]); f.sysid = sysid; f._params = {}; f.get_Parameter = lambda bip, _f=f: _f._params.setdefault(bip, Param()); scenario["flex"].append(f); return f
     DB.Mechanical.FlexDuct.Create = flex_create
     DB.Mechanical.FlexDuct = types.SimpleNamespace(Create=flex_create)
     UI = types.SimpleNamespace(Selection=types.SimpleNamespace(
@@ -201,11 +215,18 @@ def build(doc, scenario):
     def alert(msg, **k):
         alerts.append(msg)
         if k.get("exitscript"): raise ExitScript()
+        return scenario.get("confirm", True) if k.get("yes") else None
     class TLI:
         def __init__(s, item): s.item = item
     answers = scenario.get("ask", {})
+    def _select(opts, k):
+        t = k.get("title"); scenario.setdefault("selects_asked", []).append(t)
+        if t in scenario.get("select_by_title", {}): return scenario["select_by_title"][t]
+        if t in ("Chọn Family Giá Đỡ", "Chọn hướng né va chạm"): return scenario.get("select")
+        o = list(opts)[0] if list(opts) else None
+        return getattr(o, "item", o)
     forms = types.SimpleNamespace(alert=alert, TemplateListItem=TLI,
-        SelectFromList=types.SimpleNamespace(show=lambda opts, **k: scenario.get('select')),
+        SelectFromList=types.SimpleNamespace(show=lambda opts, **k: _select(opts, k)),
         ask_for_string=lambda **k: (scenario.setdefault('asked', []).append(k.get('title')), answers.get(k.get('title'), k['default']))[1])
     def sexit(): raise ExitScript()
     class RvTx:
@@ -217,6 +238,12 @@ def build(doc, scenario):
     uidoc = MagicMock()
     picks = iter(scenario.get("picks", []))
     uidoc.Selection.PickObject = lambda *a, **k: types.SimpleNamespace(eid=next(picks))
+    pick_lists = iter(scenario.get("pick_lists", []))   # mỗi lần PickObjects trả một danh sách id; không có thì lấy 1 id từ picks
+    def pick_objects(*a, **k):
+        try: ids = next(pick_lists)
+        except StopIteration: ids = [next(picks)]
+        return [types.SimpleNamespace(eid=i) for i in ids]
+    uidoc.Selection.PickObjects = pick_objects
     revit = types.SimpleNamespace(doc=doc, uidoc=uidoc, Transaction=RvTx,
                                   get_selection=lambda: types.SimpleNamespace(elements=scenario.get("selection", [])))
     pyrevit = types.ModuleType("pyrevit")

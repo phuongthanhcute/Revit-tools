@@ -15,24 +15,26 @@ Bộ công cụ tự động hóa dành cho Kỹ sư Cơ Điện (MEP) và BIM C
 
 ### 2. Smart Auto Hangers (Rải Giá Đỡ)
 - **Công dụng:** Rải giá đỡ dọc tuyến ống, xoay vuông góc ống, gán bề rộng và chiều dài ty treo tới sàn/dầm phía trên.
-- **Quy tắc rải:** mỗi đoạn ống dài `L` đặt `ceil(L / spacing)` giá, đều nhau và căn giữa. Nhịp giữa hai giá không vượt `spacing`, và **ống ngắn hơn `spacing` vẫn có đúng 1 giá** ở giữa.
+- **Quy tắc rải:** nhịp chọn theo từng nhóm ống (bảng theo HD hoặc tuỳ biến); mỗi đoạn ống dài `L` đặt `ceil(L / spacing)` giá, đều nhau và căn giữa. Nhịp giữa hai giá không vượt `spacing`, và **ống ngắn hơn `spacing` vẫn có đúng 1 giá** ở giữa.
 - **Raytrace:** bắn tia lên trục Z (cần 3D View) tìm Sàn/Dầm, ty = khoảng cách − (nửa **chiều cao** ống + cách nhiệt). Chỉ ghi vào đúng tham số bạn chỉ định.
 - **Né phụ kiện:** chỉ dịch giá trong phần nhịp còn dư, không bao giờ làm nhịp vượt `spacing` hay đẩy giá ra ngoài ống.
 - **An toàn:** chạy lại không nhân đôi giá; bỏ qua ống đứng; báo cáo rõ giá nào **chưa có ty** và vì sao.
 
 ### 3. Auto Routing (Đấu Nối Miệng Gió)
-- **Công dụng:** Chọn hàng chục miệng gió, tool tìm ống chính gần nhất, đặt cổ trích (Takeoff) và vẽ ống mềm (Flex Duct) nối vào.
+- **Công dụng:** Chọn hàng chục miệng gió / hộp gió, tool tìm ống chính gần nhất, đặt cổ trích (Takeoff) và vẽ ống mềm (Flex Duct, đường kính theo connector, có/không bảo ôn) nối vào.
 - **Tìm ống:** dùng BoundingBox quanh miệng gió để Revit chỉ trả về các ống ở gần (quét toàn model, không phụ thuộc view). Điểm tap luôn cách đầu ống ≥ 200 mm; chiều dài ống mềm được tính kèm hệ số uốn 1.2.
 - **An toàn:** chỉ dùng connector **gió**; mỗi miệng gió là một SubTransaction nên lỗi ở miệng gió nào thì hoàn tác sạch miệng gió đó, không để lại ống mềm dở dang; báo lý do thất bại cho từng miệng gió.
 
 ### 4. Clash Avoidance (Xử Lý Va Chạm)
-- **Công dụng:** Tạo hệ ống bù (U-shape / Offset: 4 lơi 45° và 3 đoạn ống) bọc qua dầm, cột, ống cứu hỏa chỉ với 2 cú click và chọn hướng Lên/Xuống.
+- **Công dụng:** Tạo hệ ống bù (U-shape / Offset: 4 lơi và 3 đoạn ống, góc mặc định 45°, chọn được 15°/30°/60°) bọc qua dầm, cột, ống cứu hỏa chọn được nhiều ống và nhiều vật cản một lần (vật cản đứng gần nhau tự gộp thành một chỗ né), chọn hướng Lên/Xuống.
 - **Tự tính vùng né:** bề rộng vùng né lấy từ BoundingBox của vật cản chiếu lên phương ống (không dùng đường chéo), độ cao lấy từ đỉnh/đáy vật cản cộng khe hở an toàn, tính cả khi **ống dốc** (cả 4 chỗ bẻ vẫn đúng 45° so với phương ống).
 - **Từ chối khi không hợp lệ:** ống đứng/dốc quá 60°, vật cản không nằm trên đường đi của ống, ống đã nằm sẵn ở phía được chọn (không cần né), không đọc được kích thước ống, ống bị Pin, hoặc điểm cắt sát đầu ống.
 - **Một Transaction duy nhất:** thiếu bất kỳ lơi nào thì **hoàn tác toàn bộ**, không để lại ống hở và không báo "thành công" sai.
 - **Nhân bản đoạn giữa:** tool cắt ống và copy đoạn giữa để các đoạn mới kế thừa kích thước và System của ống gốc (việc kế thừa Insulation chưa được kiểm chứng).
 
 ---
+
+> 📐 Đối chiếu với tiêu chuẩn Cơ điện (`Docs_tieu_chuan/`): xem `Specs/00_Doi_chieu_tieu_chuan.md`.
 
 ## ⚠️ Giới hạn đã biết
 
@@ -42,7 +44,7 @@ Những điểm **chưa xử lý** hoặc **cần kiểm chứng trên Revit th�
 |---|---|
 | Split | Đoạn dư ở cuối có thể rất ngắn (< 100 mm) hoặc dài hơn chuẩn tới 30 mm; chưa kiểm tra fitting/tap tại vị trí cắt; Union có lắp vừa đoạn ngắn không chưa kiểm chứng. |
 | Hangers | Raytrace chưa tìm trong model **Link** (sàn/dầm trong file liên kết sẽ không được thấy); nhịp qua phụ kiện có thể vượt `spacing` thêm chiều dài phụ kiện. |
-| Routing | Chưa gán kích thước ống mềm theo miệng gió; ống mềm chưa đi ra theo hướng connector miệng gió; chọn ống chỉ theo khoảng cách tâm. |
+| Routing | Đường kính ống mềm chỉ gán được khi connector tròn; ống mềm chưa đi ra theo hướng connector miệng gió; chọn ống chỉ theo khoảng cách tâm. |
 | Clash | Vùng né nay sát vật cản nên elbow có thể không đủ chỗ (tool sẽ hoàn tác và báo lỗi); cua elbow có thể ăn vào khe hở 50 mm; chưa kiểm chứng việc copy có mang theo Insulation. |
 
 ---
